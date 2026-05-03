@@ -61,8 +61,8 @@ class BotlaneUI:
 
         result_box = ttk.LabelFrame(left, text="Top 6 paires")
         result_box.pack(fill=tk.BOTH, expand=True)
-        self.result_list = tk.Listbox(result_box, height=10, font=("Segoe UI", 12))
-        self.result_list.pack(fill=tk.BOTH, expand=True, padx=8, pady=8)
+        self.results_container = ttk.Frame(result_box)
+        self.results_container.pack(fill=tk.BOTH, expand=True, padx=8, pady=8)
 
         action_frame = ttk.Frame(left)
         action_frame.pack(fill=tk.X, pady=(8, 0))
@@ -75,9 +75,16 @@ class BotlaneUI:
         self.search_var.trace_add("write", lambda *_: self._refresh_selector())
         ttk.Entry(search_frame, textvariable=self.search_var).pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(8, 0))
 
-        self.selector_list = tk.Listbox(right, width=36, height=30)
-        self.selector_list.pack(fill=tk.BOTH, expand=True, padx=8, pady=(0, 8))
-        self.selector_list.bind("<Double-Button-1>", self._on_select_champion)
+        self.selector_canvas = tk.Canvas(right, borderwidth=0, highlightthickness=0)
+        self.selector_scrollbar = ttk.Scrollbar(right, orient=tk.VERTICAL, command=self.selector_canvas.yview)
+        self.selector_canvas.configure(yscrollcommand=self.selector_scrollbar.set)
+        self.selector_scrollbar.pack(side=tk.RIGHT, fill=tk.Y, padx=(0, 8), pady=(0, 8))
+        self.selector_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(8, 0), pady=(0, 8))
+
+        self.selector_grid = ttk.Frame(self.selector_canvas)
+        self.selector_canvas_window = self.selector_canvas.create_window((0, 0), window=self.selector_grid, anchor="nw")
+        self.selector_grid.bind("<Configure>", self._on_selector_configure)
+        self.selector_canvas.bind("<Configure>", self._on_selector_canvas_configure)
 
     def _build_slot(self, parent: ttk.Frame, slot: str) -> ttk.Frame:
         card = ttk.Frame(parent, relief=tk.GROOVE, padding=8)
@@ -127,13 +134,9 @@ class BotlaneUI:
         self.search_var.set("")
         self._refresh_everything()
 
-    def _on_select_champion(self, _event: tk.Event) -> None:
+    def _select_champion(self, champion: str) -> None:
         if not self.active_target:
             return
-        cur = self.selector_list.curselection()
-        if not cur:
-            return
-        champion = self.selector_list.get(cur[0])
         if self.active_target == "ban":
             self.state.bans.add(champion)
         else:
@@ -141,15 +144,25 @@ class BotlaneUI:
         self._refresh_everything()
 
     def _refresh_selector(self) -> None:
-        self.selector_list.delete(0, tk.END)
+        for child in self.selector_grid.winfo_children():
+            child.destroy()
         if not self.active_target:
             return
         champs = available_for_slot(self.model, self.state, self.active_target)
         query = self.search_var.get().strip().lower()
         if query:
             champs = [c for c in champs if query in c.lower()]
-        for champ in champs:
-            self.selector_list.insert(tk.END, champ)
+
+        for idx, champ in enumerate(champs):
+            row, col = divmod(idx, 3)
+            item = ttk.Frame(self.selector_grid, relief=tk.GROOVE, padding=4)
+            item.grid(row=row, column=col, padx=4, pady=4, sticky="nsew")
+            icon = self._get_icon(champ)
+            btn = ttk.Button(item, text=champ, command=lambda c=champ: self._select_champion(c), width=14)
+            if icon:
+                btn.config(image=icon, compound=tk.TOP)
+                btn.image = icon
+            btn.pack()
 
     def _refresh_slots(self) -> None:
         for slot, card in self.slot_widgets.items():
@@ -175,12 +188,31 @@ class BotlaneUI:
             ttk.Button(item, text="×", width=3, command=lambda c=champion: self.clear_ban(c)).pack()
 
     def _refresh_results(self) -> None:
-        self.result_list.delete(0, tk.END)
+        for child in self.results_container.winfo_children():
+            child.destroy()
         for adc, sup, score in recommend_pairs(self.model, self.state, top_k=6):
-            self.result_list.insert(tk.END, f"{adc} + {sup}   |   score: {score:.3f}")
+            row = ttk.Frame(self.results_container)
+            row.pack(fill=tk.X, pady=2)
+            adc_icon = self._get_icon(adc)
+            sup_icon = self._get_icon(sup)
+            if adc_icon:
+                adc_lbl = ttk.Label(row, image=adc_icon)
+                adc_lbl.image = adc_icon
+                adc_lbl.pack(side=tk.LEFT)
+            if sup_icon:
+                sup_lbl = ttk.Label(row, image=sup_icon)
+                sup_lbl.image = sup_icon
+                sup_lbl.pack(side=tk.LEFT, padx=(4, 10))
+            ttk.Label(row, text=f"score: {score:.3f}", font=("Segoe UI", 11)).pack(side=tk.LEFT)
 
     def _refresh_everything(self) -> None:
         self._refresh_slots()
         self._refresh_bans()
         self._refresh_selector()
         self._refresh_results()
+
+    def _on_selector_configure(self, _event: tk.Event) -> None:
+        self.selector_canvas.configure(scrollregion=self.selector_canvas.bbox("all"))
+
+    def _on_selector_canvas_configure(self, event: tk.Event) -> None:
+        self.selector_canvas.itemconfigure(self.selector_canvas_window, width=event.width)
