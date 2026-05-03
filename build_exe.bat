@@ -2,7 +2,7 @@
 setlocal
 
 REM Build a Windows executable for Botlane Winrate Optimizer.
-REM Usage: double-click this file or run it from cmd.
+REM IMPORTANT: run the EXE from dist\, not from build\ (build\ is temporary).
 
 python -m pip install --upgrade pyinstaller
 if errorlevel 1 (
@@ -10,7 +10,7 @@ if errorlevel 1 (
   exit /b 1
 )
 
-python -m PyInstaller --noconfirm --clean --windowed --name BotlaneWinrateOptimizer ^
+python -m PyInstaller --noconfirm --clean --windowed --onefile --name BotlaneWinrateOptimizer ^
   --add-data "champion-icons;champion-icons" ^
   --add-data "champion_id_to_name.json;." ^
   --add-data "data.xlsx;." ^
@@ -21,6 +21,8 @@ if errorlevel 1 (
 )
 
 echo.
-echo Build termine. Executable: dist\BotlaneWinrateOptimizer\BotlaneWinrateOptimizer.exe
-echo Tu peux faire un raccourci Windows vers ce .exe.
+echo Build termine.
+echo Lance uniquement: dist\BotlaneWinrateOptimizer.exe
+echo Ne pas lancer le fichier dans build\ (dossier temporaire de compilation).
+echo Tu peux faire un raccourci Windows vers dist\BotlaneWinrateOptimizer.exe
 endlocal
