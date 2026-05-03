@@ -2,13 +2,20 @@ from pathlib import Path
 import tkinter as tk
 from tkinter import messagebox
 import os
+import sys
 
 from model import load_data
 from ui import BotlaneUI
 
 
+def _app_root() -> Path:
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).resolve().parent
+    return Path(__file__).resolve().parent
+
+
 def main() -> None:
-    repo_root = Path(__file__).resolve().parent
+    repo_root = _app_root()
     data_path = Path(os.environ.get("BOTLANE_DATA_XLSX", repo_root / "data.xlsx"))
 
     if not data_path.exists():
