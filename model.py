@@ -97,21 +97,25 @@ def _read_table(sheet: Dict[Tuple[int, int], str]) -> Tuple[List[str], List[List
 
 def load_data(excel_path: Path, champion_id_json_path: Path) -> DataModel:
     sheets = _read_xlsx_sheets(excel_path)
-    if "Counter" not in sheets or "Synergy" not in sheets:
-        raise ValueError("Le fichier data.xlsx doit contenir les onglets Counter et Synergy")
+    required_sheets = {"Pools", "Counter", "Synergy"}
+    missing = required_sheets.difference(sheets.keys())
+    if missing:
+        missing_txt = ", ".join(sorted(missing))
+        raise ValueError(f"Le fichier data.xlsx doit contenir les onglets: Pools, Counter, Synergy (manquant: {missing_txt})")
 
+    pools_header, pools_rows = _read_table(sheets["Pools"])
     counter_header, counter_rows = _read_table(sheets["Counter"])
     synergy_header, synergy_rows = _read_table(sheets["Synergy"])
 
-    col_index = {name: idx for idx, name in enumerate(counter_header) if name}
+    pools_col_index = {name: idx for idx, name in enumerate(pools_header) if name}
     for col in POOL_COLUMNS:
-        if col not in col_index:
-            raise ValueError(f"Colonne manquante dans Counter: {col}")
+        if col not in pools_col_index:
+            raise ValueError(f"Colonne manquante dans Pools: {col}")
 
     pools: Dict[str, List[str]] = {}
     for col in POOL_COLUMNS:
-        i = col_index[col]
-        pools[col] = [row[i] for row in counter_rows if i < len(row) and row[i]]
+        i = pools_col_index[col]
+        pools[col] = [row[i] for row in pools_rows if i < len(row) and row[i]]
 
     matrix_cols = pools["Adc_meta"] + pools["Sup_meta"]
     matrix_rows = pools["Adc_ally"] + pools["Sup_ally"]
