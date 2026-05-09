@@ -20,16 +20,15 @@ def _bundled_root() -> Path:
     return _app_root()
 
 
+def _resource_path(relative_path: str) -> Path:
+    app_resource = _app_root() / relative_path
+    if app_resource.exists():
+        return app_resource
+    return _bundled_root() / relative_path
+
+
 def main() -> None:
-    app_root = _app_root()
-    bundled_root = _bundled_root()
-
-    default_data_path = app_root / "data.xlsx"
-    if not default_data_path.exists():
-        bundled_data = bundled_root / "data.xlsx"
-        if bundled_data.exists():
-            default_data_path = bundled_data
-
+    default_data_path = _resource_path("data.xlsx")
     data_path = Path(os.environ.get("BOTLANE_DATA_XLSX", default_data_path))
 
     if not data_path.exists():
@@ -44,11 +43,11 @@ def main() -> None:
 
     model = load_data(
         excel_path=data_path,
-        champion_id_json_path=bundled_root / "champion_id_to_name.json",
+        champion_id_json_path=_resource_path("champion_id_to_name.json"),
     )
 
     root = tk.Tk()
-    BotlaneUI(root, model=model, icons_dir=bundled_root / "champion-icons")
+    BotlaneUI(root, model=model, icons_dir=_resource_path("champion-icons"))
     root.mainloop()
 
 
