@@ -1,15 +1,16 @@
 @echo off
 setlocal EnableExtensions
 
-REM Build a simple Windows folder distribution for Botlane Winrate Optimizer.
-REM The final executable is: dist\BotlaneWinrateOptimizer\BotlaneWinrateOptimizer.exe
-REM Keep data.xlsx, champion_id_to_name.json and champion-icons\ next to the EXE.
+REM Build Windows: dist\BotlaneWinrateOptimizer\BotlaneWinrateOptimizer.exe
+REM The build\ directory is only PyInstaller temporary output; never launch files from build\.
 
 cd /d "%~dp0"
 
 set "APP_NAME=BotlaneWinrateOptimizer"
-set "DIST_DIR=dist\%APP_NAME%"
-set "BUILD_DIR=build\%APP_NAME%"
+set "DIST_ROOT=dist"
+set "BUILD_ROOT=build"
+set "DIST_DIR=%DIST_ROOT%\%APP_NAME%"
+set "EXE_PATH=%DIST_DIR%\%APP_NAME%.exe"
 
 if not exist "app.py" (
   echo [ERROR] app.py introuvable. Lance ce script depuis le dossier du projet.
@@ -28,20 +29,21 @@ if not exist "champion-icons\" (
   exit /b 1
 )
 
-python -m pip install --upgrade pyinstaller openpyxl
+python -c "import PyInstaller, openpyxl" >nul 2>nul
 if errorlevel 1 (
-  echo [ERROR] Impossible d'installer PyInstaller/openpyxl.
-  exit /b 1
+  echo [INFO] Installation des dependances de build manquantes...
+  python -m pip install pyinstaller openpyxl
+  if errorlevel 1 (
+    echo [ERROR] Impossible d'installer PyInstaller/openpyxl.
+    exit /b 1
+  )
 )
 
-REM Start from a clean PyInstaller output so old files cannot mask build issues.
-if exist "%DIST_DIR%" rmdir /s /q "%DIST_DIR%"
-if exist "%BUILD_DIR%" rmdir /s /q "%BUILD_DIR%"
+REM Nettoyage complet: on repart toujours de zero.
+if exist "%DIST_ROOT%" rmdir /s /q "%DIST_ROOT%"
+if exist "%BUILD_ROOT%" rmdir /s /q "%BUILD_ROOT%"
 
 python -m PyInstaller --noconfirm --clean --windowed --onedir --name "%APP_NAME%" ^
-  --distpath "dist" ^
-  --workpath "%BUILD_DIR%" ^
-  --specpath "%BUILD_DIR%" ^
   --add-data "data.xlsx;." ^
   --add-data "champion_id_to_name.json;." ^
   --add-data "champion-icons;champion-icons" ^
@@ -51,8 +53,15 @@ if errorlevel 1 (
   exit /b 1
 )
 
-REM Also expose editable data/resources next to the EXE. The app prefers these files
-REM and falls back to PyInstaller's bundled copies if they are absent.
+if not exist "%EXE_PATH%" (
+  echo [ERROR] Executable attendu introuvable: %EXE_PATH%
+  echo [INFO] Contenu genere par PyInstaller:
+  if exist "%DIST_ROOT%" dir /s /b "%DIST_ROOT%"
+  if exist "%BUILD_ROOT%" dir /s /b "%BUILD_ROOT%"
+  exit /b 1
+)
+
+REM Fichiers editables a cote du .exe. L'app les utilise en priorite.
 copy /y "data.xlsx" "%DIST_DIR%\data.xlsx" >nul
 if errorlevel 1 (
   echo [ERROR] Impossible de copier data.xlsx dans %DIST_DIR%.
@@ -70,13 +79,15 @@ if errorlevel 1 (
   exit /b 1
 )
 
-if not exist "%DIST_DIR%\%APP_NAME%.exe" (
-  echo [ERROR] Build termine sans executable attendu: %DIST_DIR%\%APP_NAME%.exe
-  exit /b 1
-)
-
 echo.
 echo Build termine avec succes.
-echo Lance: %DIST_DIR%\%APP_NAME%.exe
-echo Garde data.xlsx, champion_id_to_name.json et champion-icons\ dans ce meme dossier.
+echo Lance ce fichier:
+echo   %EXE_PATH%
+echo.
+echo Le dossier build\ est normal: c'est un dossier temporaire PyInstaller.
+echo Le dossier a distribuer/lancer est uniquement:
+echo   %DIST_DIR%
+echo.
+echo Contenu direct du dossier final:
+dir /b "%DIST_DIR%"
 endlocal
