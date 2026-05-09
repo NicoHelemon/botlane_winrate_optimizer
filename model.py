@@ -6,6 +6,7 @@ import json
 import xml.etree.ElementTree as ET
 import zipfile
 from typing import Dict, List, Tuple
+from openpyxl import load_workbook
 
 
 @dataclass
@@ -63,24 +64,19 @@ def _parse_sheet(xml_data: bytes) -> Dict[Tuple[int, int], str]:
 
 
 def _read_xlsx_sheets(path: Path) -> Dict[str, Dict[Tuple[int, int], str]]:
-    with zipfile.ZipFile(path, "r") as zf:
-        wb = ET.fromstring(zf.read("xl/workbook.xml"))
-        rels = ET.fromstring(zf.read("xl/_rels/workbook.xml.rels"))
+    wb = load_workbook(path, data_only=True)
+    sheets: Dict[str, Dict[Tuple[int, int], str]] = {}
 
-        rel_map = {
-            rel.attrib["Id"]: rel.attrib["Target"].lstrip("/")
-            for rel in rels
-            if rel.tag.endswith("Relationship")
-        }
+    for ws in wb.worksheets:
+        values: Dict[Tuple[int, int], str] = {}
 
-        sheets: Dict[str, Dict[Tuple[int, int], str]] = {}
-        for sheet in wb.findall(".//x:sheets/x:sheet", NS):
-            name = sheet.attrib["name"]
-            rid = sheet.attrib["{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id"]
-            target = rel_map[rid]
-            if not target.startswith("xl/"):
-                target = f"xl/{target}"
-            sheets[name] = _parse_sheet(zf.read(target))
+        for row in ws.iter_rows():
+            for cell in row:
+                if cell.value is not None:
+                    values[(cell.row - 1, cell.column - 1)] = str(cell.value).strip()
+
+        sheets[ws.title] = values
+
     return sheets
 
 
@@ -104,6 +100,7 @@ def load_data(excel_path: Path, champion_id_json_path: Path) -> DataModel:
         raise ValueError(f"Le fichier data.xlsx doit contenir les onglets: Pools, Counter, Synergy (manquant: {missing_txt})")
 
     pools_header, pools_rows = _read_table(sheets["Pools"])
+    print("Pools header lu par Python:", pools_header)
     counter_header, counter_rows = _read_table(sheets["Counter"])
     synergy_header, synergy_rows = _read_table(sheets["Synergy"])
 
