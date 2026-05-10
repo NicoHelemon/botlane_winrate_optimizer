@@ -6,7 +6,7 @@ from tkinter import ttk
 from typing import Dict, Optional
 
 from model import DataModel
-from scoring import DraftState, available_for_slot, recommend_pairs
+from scoring import DraftState, available_for_slot, recommend_pairs, score_pair
 
 
 SLOT_LABELS = {
