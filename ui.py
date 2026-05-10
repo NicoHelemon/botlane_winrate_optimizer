@@ -72,8 +72,13 @@ class BotlaneUI:
 
         self.results_area = ttk.Frame(self.result_box)
         self.results_area.pack(fill=tk.BOTH, expand=True, padx=8, pady=8)
-        self.results_canvas = tk.Canvas(self.results_area, borderwidth=0, highlightthickness=0)
-        self.results_scrollbar = ttk.Scrollbar(self.results_area, orient=tk.VERTICAL, command=self.results_canvas.yview)
+        results_header = ttk.Frame(self.results_area)
+        results_header.pack(fill=tk.X, pady=(0, 2))
+        ttk.Label(results_header, text="Score", font=("Segoe UI", 10, "bold")).pack(side=tk.LEFT, padx=(156, 0))
+        results_body = ttk.Frame(self.results_area)
+        results_body.pack(fill=tk.BOTH, expand=True)
+        self.results_canvas = tk.Canvas(results_body, borderwidth=0, highlightthickness=0)
+        self.results_scrollbar = ttk.Scrollbar(results_body, orient=tk.VERTICAL, command=self.results_canvas.yview)
         self.results_canvas.configure(yscrollcommand=self.results_scrollbar.set)
         self.results_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         self.results_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
@@ -224,6 +229,9 @@ class BotlaneUI:
         if not self.results_best_first:
             pairs.reverse()
 
+        max_positive = max((score for _, _, score in pairs), default=0.0)
+        max_negative = abs(min((score for _, _, score in pairs), default=0.0))
+
         for adc, sup, score in pairs:
             row = ttk.Frame(self.results_container)
             row.pack(fill=tk.X, pady=2)
@@ -237,7 +245,21 @@ class BotlaneUI:
                 sup_lbl = ttk.Label(row, image=sup_icon)
                 sup_lbl.image = sup_icon
                 sup_lbl.pack(side=tk.LEFT, padx=(4, 10))
-            ttk.Label(row, text=f"score: {score:.3f}", font=("Segoe UI", 11)).pack(side=tk.LEFT)
+            ttk.Label(
+                row,
+                text=f"{score:.2f}",
+                foreground=self._score_color(score, max_positive, max_negative),
+                font=("Segoe UI", 11),
+            ).pack(side=tk.LEFT)
+
+    def _score_color(self, score: float, max_positive: float, max_negative: float) -> str:
+        if score > 0 and max_positive > 0:
+            intensity = round(180 * score / max_positive)
+            return f"#00{intensity:02x}00"
+        if score < 0 and max_negative > 0:
+            intensity = round(220 * abs(score) / max_negative)
+            return f"#{intensity:02x}0000"
+        return "#000000"
 
     def _refresh_everything(self) -> None:
         self._refresh_slots()
