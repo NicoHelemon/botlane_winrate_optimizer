@@ -25,6 +25,7 @@ class BotlaneUI:
         self.state = DraftState()
         self.active_target: Optional[str] = None
         self.icon_cache: Dict[str, tk.PhotoImage] = {}
+        self.results_best_first = True
 
         self.root.title("Botlane Winrate Optimizer")
         self.root.geometry("1200x760")
@@ -59,10 +60,26 @@ class BotlaneUI:
             widget.grid(row=0, column=idx, padx=8)
             self.slot_widgets[slot] = widget
 
-        result_box = ttk.LabelFrame(left, text="Top 6 paires")
+        result_box = ttk.LabelFrame(left, text="Paires")
         result_box.pack(fill=tk.BOTH, expand=True)
-        self.results_container = ttk.Frame(result_box)
-        self.results_container.pack(fill=tk.BOTH, expand=True, padx=8, pady=8)
+
+        result_toolbar = ttk.Frame(result_box)
+        result_toolbar.pack(fill=tk.X, padx=8, pady=(8, 0))
+        ttk.Button(result_toolbar, text="Best", command=lambda: self.set_results_sort(True)).pack(side=tk.LEFT)
+        ttk.Button(result_toolbar, text="Worst", command=lambda: self.set_results_sort(False)).pack(side=tk.LEFT, padx=(6, 0))
+
+        results_area = ttk.Frame(result_box)
+        results_area.pack(fill=tk.BOTH, expand=True, padx=8, pady=8)
+        self.results_canvas = tk.Canvas(results_area, borderwidth=0, highlightthickness=0)
+        self.results_scrollbar = ttk.Scrollbar(results_area, orient=tk.VERTICAL, command=self.results_canvas.yview)
+        self.results_canvas.configure(yscrollcommand=self.results_scrollbar.set)
+        self.results_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        self.results_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+        self.results_container = ttk.Frame(self.results_canvas)
+        self.results_canvas_window = self.results_canvas.create_window((0, 0), window=self.results_container, anchor="nw")
+        self.results_container.bind("<Configure>", self._on_results_configure)
+        self.results_canvas.bind("<Configure>", self._on_results_canvas_configure)
 
         action_frame = ttk.Frame(left)
         action_frame.pack(fill=tk.X, pady=(8, 0))
@@ -134,6 +151,10 @@ class BotlaneUI:
         self.search_var.set("")
         self._refresh_everything()
 
+    def set_results_sort(self, best_first: bool) -> None:
+        self.results_best_first = best_first
+        self._refresh_results()
+
     def _select_champion(self, champion: str) -> None:
         if not self.active_target:
             return
@@ -190,7 +211,13 @@ class BotlaneUI:
     def _refresh_results(self) -> None:
         for child in self.results_container.winfo_children():
             child.destroy()
-        for adc, sup, score in recommend_pairs(self.model, self.state, top_k=10):
+
+        all_pair_count = len(self.model.adc_ally) * len(self.model.sup_ally)
+        pairs = recommend_pairs(self.model, self.state, top_k=all_pair_count)
+        if not self.results_best_first:
+            pairs.reverse()
+
+        for adc, sup, score in pairs:
             row = ttk.Frame(self.results_container)
             row.pack(fill=tk.X, pady=2)
             adc_icon = self._get_icon(adc)
@@ -216,3 +243,9 @@ class BotlaneUI:
 
     def _on_selector_canvas_configure(self, event: tk.Event) -> None:
         self.selector_canvas.itemconfigure(self.selector_canvas_window, width=event.width)
+
+    def _on_results_configure(self, _event: tk.Event) -> None:
+        self.results_canvas.configure(scrollregion=self.results_canvas.bbox("all"))
+
+    def _on_results_canvas_configure(self, event: tk.Event) -> None:
+        self.results_canvas.itemconfigure(self.results_canvas_window, width=event.width)
