@@ -5,11 +5,7 @@ a = Analysis(
     ['app.py'],
     pathex=[],
     binaries=[],
-    datas=[
-        ('data.xlsx', '.'),
-        ('champion_id_to_name.json', '.'),
-        ('champion-icons', 'champion-icons'),
-    ],
+    datas=[('data.xlsx', '.'), ('champion_id_to_name.json', '.'), ('champion-icons', 'champion-icons')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},

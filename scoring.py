@@ -33,7 +33,7 @@ def _counter_mean(model: DataModel, adc: str, sup: str, enemies: Sequence[str]) 
     return total / (2 * len(enemies))
 
 
-def score_pair(model: DataModel, adc: str, sup: str, state: DraftState, synergy_weight: float = 2.0) -> float:
+def score_pair(model: DataModel, adc: str, sup: str, state: DraftState, synergy_weight: float = 1.0) -> float:
     enemies = _known_enemies(state)
     synergy = model.synergy.get(adc, {}).get(sup, 0.0)
     return _counter_mean(model, adc, sup, enemies) + synergy_weight * synergy
@@ -42,8 +42,8 @@ def score_pair(model: DataModel, adc: str, sup: str, state: DraftState, synergy_
 def recommend_pairs(
     model: DataModel,
     state: DraftState,
-    top_k: int = 6,
-    synergy_weight: float = 2.0,
+    top_k: int = 10,
+    synergy_weight: float = 1.0,
 ) -> List[Tuple[str, str, float]]:
     banned = state.bans or set()
     already_taken = {c for c in [state.adc_ally, state.sup_ally, state.adc_enemy, state.sup_enemy] if c}

@@ -190,7 +190,7 @@ class BotlaneUI:
     def _refresh_results(self) -> None:
         for child in self.results_container.winfo_children():
             child.destroy()
-        for adc, sup, score in recommend_pairs(self.model, self.state, top_k=6):
+        for adc, sup, score in recommend_pairs(self.model, self.state, top_k=10):
             row = ttk.Frame(self.results_container)
             row.pack(fill=tk.X, pady=2)
             adc_icon = self._get_icon(adc)
