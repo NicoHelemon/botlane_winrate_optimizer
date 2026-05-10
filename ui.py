@@ -315,32 +315,22 @@ class BotlaneUI:
         return results
 
     def _score_allies_into_enemy_pair(self, enemy_adc: str, enemy_sup: str) -> Optional[float]:
-        banned = self.state.bans or set()
-        enemy_pair = {enemy_adc, enemy_sup}
-        adc_candidates = [self.state.adc_ally] if self.state.adc_ally else self.model.adc_ally
-        sup_candidates = [self.state.sup_ally] if self.state.sup_ally else self.model.sup_ally
-        scores: list[float] = []
-
-        for ally_adc in adc_candidates:
-            if ally_adc in banned or ally_adc in enemy_pair:
-                continue
-            for ally_sup in sup_candidates:
-                if ally_sup in banned or ally_sup in enemy_pair:
-                    continue
-                if ally_adc == ally_sup:
-                    continue
-                matchup_state = DraftState(
-                    adc_ally=ally_adc,
-                    sup_ally=ally_sup,
-                    adc_enemy=enemy_adc,
-                    sup_enemy=enemy_sup,
-                    bans=banned,
-                )
-                scores.append(score_pair(self.model, ally_adc, ally_sup, matchup_state))
-
-        if not scores:
+        selected_allies = [c for c in [self.state.adc_ally, self.state.sup_ally] if c]
+        if not selected_allies:
             return None
-        return max(scores)
+
+        enemies = [enemy_adc, enemy_sup]
+        counter_score = sum(
+            self.model.counter.get(ally, {}).get(enemy, 0.0)
+            for ally in selected_allies
+            for enemy in enemies
+        )
+        counter_score /= len(selected_allies) * len(enemies)
+
+        if self.state.adc_ally and self.state.sup_ally:
+            counter_score += self.model.synergy.get(self.state.adc_ally, {}).get(self.state.sup_ally, 0.0)
+
+        return counter_score
 
     def _render_pair_rows(self, container: ttk.Frame, pairs: list[tuple[str, str, float]]) -> None:
         max_positive = max((score for _, _, score in pairs), default=0.0)
