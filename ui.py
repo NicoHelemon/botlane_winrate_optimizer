@@ -26,7 +26,7 @@ class BotlaneUI:
         self.active_target: Optional[str] = None
         self.icon_cache: Dict[str, tk.PhotoImage] = {}
         self.results_best_first = True
-        self.enemy_results_best_first = True
+        self.enemy_results_best_first = False
 
         self.root.title("Botlane Winrate Optimizer")
         self.root.geometry("1200x760")
@@ -285,12 +285,15 @@ class BotlaneUI:
         self._render_pair_rows(self.enemy_results_container, pairs)
 
     def _recommend_enemy_pairs(self) -> list[tuple[str, str, float]]:
+        if not self.state.adc_ally and not self.state.sup_ally:
+            return []
+
         banned = self.state.bans or set()
         taken_allies = {c for c in [self.state.adc_ally, self.state.sup_ally] if c}
         taken_enemies = {c for c in [self.state.adc_enemy, self.state.sup_enemy] if c}
 
-        adc_candidates = [self.state.adc_enemy] if self.state.adc_enemy else self.model.adc_meta
-        sup_candidates = [self.state.sup_enemy] if self.state.sup_enemy else self.model.sup_meta
+        adc_candidates = [self.state.adc_enemy] if self.state.adc_enemy else self.model.adc_meta[:20]
+        sup_candidates = [self.state.sup_enemy] if self.state.sup_enemy else self.model.sup_meta[:20]
 
         results: list[tuple[str, str, float]] = []
         for enemy_adc in adc_candidates:
